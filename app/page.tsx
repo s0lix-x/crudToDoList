@@ -13,11 +13,7 @@ interface Todo {
 }
 
 export default function Page() {
-  const [todos, setTodos] = useState<Todo[]>([
-    { id: 1, text: "Belajar Next.js", completed: true },
-    { id: 2, text: "Bikin aplikasi ToDo List", completed: false },
-    { id: 3, text: "Push ke GitHub", completed: false },
-  ])
+  const [todos, setTodos] = useState<Todo[]>([])
   const [input, setInput] = useState("")
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editText, setEditText] = useState("")
@@ -26,22 +22,28 @@ export default function Page() {
     e.preventDefault()
     if (!input.trim()) return
 
-    setTodos([
-      ...todos,
-      {
-        id: Date.now(),
-        text: input.trim(),
-        completed: false,
-      },
-    ])
+    const newTodo: Todo = {
+      id: Date.now(),
+      text: input.trim(),
+      completed: false,
+    }
+
+    setTodos(todos.concat(newTodo))
     setInput("")
   }
 
   const handleToggle = (id: number) => {
     setTodos(
-      todos.map((todo) =>
-        todo.id === id ? { ...todo, completed: !todo.completed } : todo
-      )
+      todos.map((todo) => {
+        if (todo.id === id) {
+          return {
+            id: todo.id,
+            text: todo.text,
+            completed: !todo.completed,
+          }
+        }
+        return todo
+      })
     )
   }
 
@@ -57,9 +59,16 @@ export default function Page() {
   const handleSaveEdit = (id: number) => {
     if (!editText.trim()) return
     setTodos(
-      todos.map((todo) =>
-        todo.id === id ? { ...todo, text: editText.trim() } : todo
-      )
+      todos.map((todo) => {
+        if (todo.id === id) {
+          return {
+            id: todo.id,
+            text: editText.trim(),
+            completed: todo.completed,
+          }
+        }
+        return todo
+      })
     )
     setEditingId(null)
   }
