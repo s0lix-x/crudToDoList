@@ -15,18 +15,45 @@ interface Todo {
 export default function Page() {
   const [todos, setTodos] = useState<Todo[]>([])
   const [input, setInput] = useState("")
+  const [editId, setEditId] = useState<number | null>(null)
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim()) return
 
-    setTodos(
-      todos.concat({
-        id: Date.now(),
-        text: input.trim(),
-        completed: false,
-      })
-    )
+    if (editId !== null) {
+      setTodos(
+        todos.map((t) => {
+          if (t.id === editId) {
+            return {
+              id: t.id,
+              text: input.trim(),
+              completed: t.completed,
+            }
+          }
+          return t
+        })
+      )
+      setEditId(null)
+    } else {
+      setTodos(
+        todos.concat({
+          id: Date.now(),
+          text: input.trim(),
+          completed: false,
+        })
+      )
+    }
+    setInput("")
+  }
+
+  const handleEdit = (todo: Todo) => {
+    setEditId(todo.id)
+    setInput(todo.text)
+  }
+
+  const handleCancel = () => {
+    setEditId(null)
     setInput("")
   }
 
@@ -47,6 +74,9 @@ export default function Page() {
 
   const handleDelete = (id: number) => {
     setTodos(todos.filter((t) => t.id !== id))
+    if (editId === id) {
+      handleCancel()
+    }
   }
 
   return (
@@ -56,13 +86,20 @@ export default function Page() {
           <CardTitle>ToDo List</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form onSubmit={handleAdd} className="flex gap-2">
+          <form onSubmit={handleSubmit} className="flex gap-2">
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Tulis tugas..."
             />
-            <Button type="submit">Tambah</Button>
+            <Button type="submit">
+              {editId !== null ? "Update" : "Tambah"}
+            </Button>
+            {editId !== null && (
+              <Button type="button" variant="outline" onClick={handleCancel}>
+                Batal
+              </Button>
+            )}
           </form>
 
           <div className="space-y-2">
@@ -86,13 +123,22 @@ export default function Page() {
                     {todo.text}
                   </span>
                 </div>
-                <Button
-                  size="xs"
-                  variant="destructive"
-                  onClick={() => handleDelete(todo.id)}
-                >
-                  Hapus
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => handleEdit(todo)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="destructive"
+                    onClick={() => handleDelete(todo.id)}
+                  >
+                    Hapus
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
