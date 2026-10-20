@@ -37,28 +37,48 @@ export default function Page() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim()) return
+    const textVal = input.trim()
+    if (!textVal) return
 
     if (editId !== null) {
-      const todo = todos.find((t) => t.id === editId)
-      await fetch(`${API_URL}/${editId}`, {
+      const targetId = editId
+      setTodos((prev) =>
+        prev.map((t) => (t.id === targetId ? { ...t, text: textVal } : t))
+      )
+      setEditId(null)
+      setInput("")
+
+      await fetch(`${API_URL}/${targetId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: input.trim(),
-          completed: todo ? todo.completed : false,
-        }),
+        body: JSON.stringify({ text: textVal }),
       })
-      setEditId(null)
     } else {
-      await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: input.trim() }),
-      })
+      const tempId = Date.now()
+      const optimisticTodo: Todo = {
+        id: tempId,
+        text: textVal,
+        completed: false,
+      }
+      setTodos((prev) => [optimisticTodo, ...prev])
+      setInput("")
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: textVal }),
+        })
+        const saved = await res.json()
+        if (saved && saved.id) {
+          setTodos((prev) =>
+            prev.map((t) => (t.id === tempId ? { ...t, id: saved.id } : t))
+          )
+        }
+      } catch (err) {
+        setTodos((prev) => prev.filter((t) => t.id !== tempId))
+      }
     }
-    setInput("")
-    fetchTodos()
   }
 
   const handleEdit = (todo: Todo) => {
@@ -72,22 +92,27 @@ export default function Page() {
   }
 
   const handleToggle = async (todo: Todo) => {
+    const nextCompleted = !todo.completed
+    setTodos((prev) =>
+      prev.map((t) => (t.id === todo.id ? { ...t, completed: nextCompleted } : t))
+    )
+
     await fetch(`${API_URL}/${todo.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ completed: !todo.completed }),
+      body: JSON.stringify({ completed: nextCompleted }),
     })
-    fetchTodos()
   }
 
   const handleDelete = async (id: number) => {
-    await fetch(`${API_URL}/${id}`, {
-      method: "DELETE",
-    })
+    setTodos((prev) => prev.filter((t) => t.id !== id))
     if (editId === id) {
       handleCancel()
     }
-    fetchTodos()
+
+    await fetch(`${API_URL}/${id}`, {
+      method: "DELETE",
+    })
   }
 
   return (
