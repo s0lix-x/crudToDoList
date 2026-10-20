@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -12,39 +12,53 @@ interface Todo {
   completed: boolean
 }
 
+const API_URL = "/api/todos"
+
 export default function Page() {
   const [todos, setTodos] = useState<Todo[]>([])
   const [input, setInput] = useState("")
   const [editId, setEditId] = useState<number | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const fetchTodos = async () => {
+    try {
+      const res = await fetch(API_URL)
+      const data = await res.json()
+      if (Array.isArray(data)) {
+        setTodos(data)
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  useEffect(() => {
+    fetchTodos()
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim()) return
 
     if (editId !== null) {
-      setTodos(
-        todos.map((t) => {
-          if (t.id === editId) {
-            return {
-              id: t.id,
-              text: input.trim(),
-              completed: t.completed,
-            }
-          }
-          return t
-        })
-      )
+      const todo = todos.find((t) => t.id === editId)
+      await fetch(`${API_URL}/${editId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: input.trim(),
+          completed: todo ? todo.completed : false,
+        }),
+      })
       setEditId(null)
     } else {
-      setTodos(
-        todos.concat({
-          id: Date.now(),
-          text: input.trim(),
-          completed: false,
-        })
-      )
+      await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: input.trim() }),
+      })
     }
     setInput("")
+    fetchTodos()
   }
 
   const handleEdit = (todo: Todo) => {
@@ -57,26 +71,23 @@ export default function Page() {
     setInput("")
   }
 
-  const handleToggle = (id: number) => {
-    setTodos(
-      todos.map((t) => {
-        if (t.id === id) {
-          return {
-            id: t.id,
-            text: t.text,
-            completed: !t.completed,
-          }
-        }
-        return t
-      })
-    )
+  const handleToggle = async (todo: Todo) => {
+    await fetch(`${API_URL}/${todo.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ completed: !todo.completed }),
+    })
+    fetchTodos()
   }
 
-  const handleDelete = (id: number) => {
-    setTodos(todos.filter((t) => t.id !== id))
+  const handleDelete = async (id: number) => {
+    await fetch(`${API_URL}/${id}`, {
+      method: "DELETE",
+    })
     if (editId === id) {
       handleCancel()
     }
+    fetchTodos()
   }
 
   return (
@@ -106,12 +117,12 @@ export default function Page() {
             {todos.map((todo) => (
               <div
                 key={todo.id}
-                className="flex items-center justify-between border p-2"
+                className="flex items-center justify-between border p-2 rounded-md"
               >
                 <div className="flex items-center gap-2">
                   <Checkbox
                     checked={todo.completed}
-                    onCheckedChange={() => handleToggle(todo.id)}
+                    onCheckedChange={() => handleToggle(todo)}
                   />
                   <span
                     className={
